@@ -7,8 +7,8 @@ use std::io::{self, Read};
 
 
 struct Player {
-    name: String,
-    index: i32,
+    name: char,
+    location: i32,
     powerup: i8,
 }
 
@@ -19,35 +19,68 @@ struct Board {
 }
 
 struct Tile {
+    loaction: i32,
     displacement: i32,
     powerup: i8,
 }
 
-struct GameMap {
+struct Game {
     board: Board,
     players: Vec<Player>,
     tiles: Vec<Tile>,
 }
 
 fn main() {
-    let mut game: GameMap = GameMap {
+    let b = "board 3 4\nplayers 2\nturns 5".to_string();
+    let game = readFrom(b);
+    print_board(&game);
+}
+
+#[allow(non_snake_case)]
+fn readFrom(read: String) -> Game {
+    let mut game: Game = Game {
         board: Board { width: 0, height: 0, size: 0 },
         players: (Vec::new()),
         tiles: (Vec::new())
     };
-    let b = "board 3 4\nplayers 2\nturns 5".to_string();
-    let lines: Vec<&str> = b.as_str().split('\n').collect();
+    let lines: Vec<&str> = read.as_str().split('\n').collect();
     for line in lines {
         let words: Vec<&str> = line.split(' ').collect();
         if words[0] == "board" {
             game.board.height = words[2].parse().unwrap();
             game.board.width = words[1].parse().unwrap();
             game.board.size = game.board.width * game.board.height;
+        } else if words[0] == "players" {
+            for index in 0..words[1].parse().unwrap() {
+                game.players.push(Player {
+                    name: ((65 + index) as u8 as char),
+                    location: 0,
+                    powerup: 0,
+                });
+                game = move_player(game, index, 1);
+            }
         }
-        println!("{}", line);
+     //   println!("{}", line);
     }
+    return game;
+}
 
-    print_board(game);
+fn move_player(mut map: Game, player_index: i8, new_player_locatin: i32) -> Game {
+    let player_on_tiles = get_player_on_tile(&map, new_player_locatin);
+    map.players[player_index as usize].location = new_player_locatin;
+    if player_on_tiles != -1 {
+        return move_player(map, player_on_tiles, new_player_locatin + 1)
+    }
+    return map;
+}
+
+fn get_player_on_tile(map: &Game, loc: i32) -> i8 {
+    for index in 0..map.players.len() {
+        if map.players[index].location == loc {
+            return index as i8;
+        }
+    }
+    return -1;
 }
 
 fn read_commands() -> String {
@@ -56,8 +89,7 @@ fn read_commands() -> String {
     return buffer;
 }
 
-
-fn print_board(map: GameMap) {
+fn print_board(map: &Game) {
     let height = map.board.height;
     let width = map.board.width;
     let mut index;
@@ -74,7 +106,7 @@ fn print_board(map: GameMap) {
                 if t == 0 {
                     print!("{}|", format_number(index + 1));
                 } else {
-                    print!("{}|", format_tile_data(index + 1));
+                    print!("{}|", format_tile_data(map, index + 1));
                 }
             }
             println!("");
@@ -91,8 +123,13 @@ fn print_board_border(w: i32) -> String {
     return s;
 }
 
-fn format_tile_data(i: i32) -> String {
-    return "   ".to_string();
+fn format_tile_data(map: &Game, i: i32) -> String {
+    let mut name = ' ';
+    let x = get_player_on_tile(map, i);
+    if x != -1 {
+       name = map.players[x as usize].name;
+    }
+    return format!("{}{}", name, "  ");
 }
 
 fn format_number(i: i32) -> String {
