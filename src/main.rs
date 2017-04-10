@@ -25,6 +25,27 @@ struct Tile {
     powerup: i8,
 }
 
+impl Player {
+    fn remove_powerup(&mut self, powerup: i8) {
+        if powerup > 0 {
+            self.powerup = self.powerup & (7 ^ (1 << (powerup - 1)));
+        }
+    }
+
+    fn add_powerup(&mut self, powerup: i8) {
+        if powerup > 0 {
+            self.powerup = self.powerup | (1 << (powerup - 1));
+        }
+    }
+
+    fn have_powerup(&self, powerup: i8) -> bool {
+        if powerup > 0 {
+            return (self.powerup >> (powerup - 1)) & 1 == 1
+        }
+        return false;
+    }
+}
+
 impl Tile {
     pub fn new_from(loc: &str, dis: &str, power: &str) -> Tile {
         Tile {
@@ -47,16 +68,18 @@ fn main() {
     let b = "board 3 4\nplayers 2\ndice 1 2\nturns 5".to_string();
     let b = "board 3 4\nplayers 2\ndice 1 2 2 2 2\nladder 5 11\nsnake 8 4\nturns 5".to_string();
     let b = "board 3 4\nplayers 2\ndice 1 2 2 2 2\nladder 5 11\nsnake 8 4\npowerup escalator 6 9\npowerup antivenom 7\npowerup double 4\nturns 10".to_string();
+    //let b = read_commands();
     let game = readFrom(b);
     print_board(&game);
 }
+
 
 fn make_emtpy_map() -> Game {
     return Game {
         board: Board { width: 0, height: 0, size: 0 },
         players: (Vec::new()),
         tiles: (Vec::new()),
-        dice: Dice { dices: Vec::new(), index: 0 }
+        dice: Dice { dices: vec![1], index: 0 }
     };
 }
 
@@ -83,6 +106,7 @@ fn readFrom(read: String) -> Game {
                 }
             }
             "dice" => {
+                game.dice.dices.remove(0);
                 for i in 1..(words.len()) {
                     game.dice.dices.push(words[i].parse::<i8>().unwrap());
                 }
@@ -127,6 +151,7 @@ fn move_player(mut map: Game, player_index: i8, mut new_player_locatin: i32) -> 
     if specal_tiles != -1 {
         let ref tile = map.tiles[specal_tiles as usize];
         if tile.displacement != -1 { new_player_locatin = tile.displacement }
+        map.players[player_index as usize].add_powerup(tile.powerup);
     }
     let player_on_tiles = get_player_on_tile(&map, new_player_locatin);
     map.players[player_index as usize].location = new_player_locatin;
@@ -163,6 +188,7 @@ fn read_commands() -> String {
 fn print_board(map: &Game) {
     let height = map.board.height;
     let width = map.board.width;
+    if height == 0 || width == 0 { return; }
     let mut index;
     for y in 0..height {
         println!("{}", print_board_border(width));
