@@ -68,7 +68,7 @@ fn main() {
     let b = "board 3 4\nplayers 2\ndice 1 2\nturns 5".to_string();
     let b = "board 3 4\nplayers 2\ndice 1 2 2 2 2\nladder 5 11\nsnake 8 4\nturns 5".to_string();
     let b = "board 3 4\nplayers 2\ndice 1 2 2 2 2\nladder 5 11\nsnake 8 4\npowerup escalator 6 9\npowerup antivenom 7\npowerup double 4\nturns 10".to_string();
-    //let b = read_commands();
+    // let b = read_commands();
     let game = readFrom(b);
     print_board(&game);
 }
@@ -137,26 +137,54 @@ fn readFrom(read: String) -> Game {
 fn player_one_around(mut map: Game) -> Game {
     for index in 0..map.players.len() {
         if get_player_on_tile(&map, map.board.size) != -1 { return map; }
-        let roll = map.dice.dices[map.dice.index];
+        let mut roll = map.dice.dices[map.dice.index];
         map.dice.index = (map.dice.index + 1) % map.dice.dices.len();
+        if map.players[index].have_powerup(3) { roll = roll * 2; }
+        map.players[index].remove_powerup(3);
         let new_loc = map.players[index].location + roll as i32;
+       // println!("{} : {} : {:b}", map.players[index].name, roll, map.players[index].powerup);
         map = move_player(map, index as i8, new_loc); // check make it roll 1
     }
     return map;
 }
 
+#[allow(unused_assignments)]
 fn move_player(mut map: Game, player_index: i8, mut new_player_locatin: i32) -> Game {
+    let player_index = player_index as usize;
     if new_player_locatin > map.board.size { return map; }
     let specal_tiles = get_specal_tile_index(&map, new_player_locatin);
     if specal_tiles != -1 {
         let ref tile = map.tiles[specal_tiles as usize];
-        if tile.displacement != -1 { new_player_locatin = tile.displacement }
-        map.players[player_index as usize].add_powerup(tile.powerup);
+        if tile.displacement != -1 {
+            let mut d = tile.displacement - new_player_locatin;
+            if tile.displacement > new_player_locatin {
+                if map.players[player_index].have_powerup(1) {
+                    d = d * 2;
+                    map.players[player_index].remove_powerup(1)
+                }
+                new_player_locatin = new_player_locatin + d;
+            } else {
+                if map.players[player_index].have_powerup(2) {
+                    d = 0;
+                    map.players[player_index].remove_powerup(2)
+                }
+                new_player_locatin = new_player_locatin + d;
+            }
+        }
+        map.players[player_index].add_powerup(tile.powerup);
     }
+    if new_player_locatin > map.board.size { new_player_locatin = map.board.size; }
     let player_on_tiles = get_player_on_tile(&map, new_player_locatin);
-    map.players[player_index as usize].location = new_player_locatin;
+    map.players[player_index].location = new_player_locatin;
     if player_on_tiles != -1 {
-        return move_player(map, player_on_tiles, new_player_locatin + 1)
+        if player_on_tiles != player_index as i8 {
+            return move_player(map, player_on_tiles, new_player_locatin + 1)
+        } else {
+            let specal_tiles = get_specal_tile_index(&map, new_player_locatin);
+            if specal_tiles != -1 {
+                map.players[player_index].add_powerup(map.tiles[specal_tiles as usize].powerup);
+            }
+        }
     }
     return map;
 }
